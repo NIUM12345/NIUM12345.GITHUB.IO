@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airline URL Manager</title>
+    <style>
+        body {
+            display: flex;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+        .left-panel, .right-panel {
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .left-panel {
+            width: 30%;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+        .right-panel {
+            flex: 1;
+            padding-left: 30px;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        input[type="text"], input[type="file"], button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        ul li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        ul li a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        ul li a:hover {
+            text-decoration: underline;
+        }
+        .delete-btn, .edit-btn {
+            background-color: #FF4D4D;
+            border: none;
+            color: white;
+            padding: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 60px;
+        }
+        .edit-btn {
+            background-color: #FFC107;
+        }
+        .edit-btn:hover {
+            background-color: #E0A800;
+        }
+        .delete-btn:hover {
+            background-color: #d11a1a;
+        }
+        .folder-item {
+            background-color: green;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .folder-item:hover {
+            background-color: #006400;
+        }
+        .dropdown {
+            margin-top: 10px;
+            display: none;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #fff;
+            color: black;
+            width: 400px;
+        }
+        .dropdown ul {
+            padding: 0;
+            list-style-type: none;
+        }
+        .dropdown ul li {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo {
+            width: 110px;
+            height: 30px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-right: 100px;
+            cursor: pointer;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .list-item .details {
+            flex-grow: 1;
+        }
+        .list-item .details a {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="left-panel">
+        <h2>Manage Airlines</h2>
+        <div class="form-group">
+            <label for="airline-name">Airline Name:</label>
+            <input type="text" id="airline-name" placeholder="Enter airline name">
+        </div>
+        <div class="form-group">
+            <label for="airline-url">Airline URL:</label>
+            <input type="text" id="airline-url" placeholder="Enter airline URL">
+        </div>
+        <div class="form-group">
+            <label for="airline-logo">Airline Logo:</label>
+            <input type="file" id="airline-logo" accept="image/*">
+        </div>
+        <button onclick="addAirline()">Add Airline</button>
+        <div class="form-group">
+            <input type="text" id="search-box" placeholder="Search airlines" oninput="filterAirlines()">
+        </div>
+        <ul id="airline-list"></ul>
+    </div>
+    <div class="right-panel">
+        <h2>Airlines Folder</h2>
+        <div class="folder-item" onclick="toggleAirlineFolder()">Airlines</div>
+        <div class="dropdown" id="airline-names-dropdown">
+            <ul id="airline-names-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Load saved airlines from localStorage on page load
+        window.onload = function () {
+            const savedAirlines = JSON.parse(localStorage.getItem('airlines')) || [];
+            const list = document.getElementById('airline-list');
+            const namesList = document.getElementById('airline-names-list');
+            savedAirlines.forEach(airline => {
+                const listItem = createListItem(airline.name, airline.url, airline.logo);
+                list.appendChild(listItem);
+
+                const nameItem = createDropdownItem(airline.name, airline.url, airline.logo);
+                namesList.appendChild(nameItem);
+            });
+        };
+
+        // Save airlines to localStorage
+        function saveAirlines() {
+            const listItems = document.querySelectorAll('#airline-list li');
+            const airlines = Array.from(listItems).map(item => ({
+                name: item.querySelector('a').textContent,
+                url: item.querySelector('a').href,
+                logo: item.querySelector('img')?.src || ''
+            }));
+            localStorage.setItem('airlines', JSON.stringify(airlines));
+        }
+
+        function addAirline() {
+            const name = document.getElementById('airline-name').value.trim();
+            const url = document.getElementById('airline-url').value.trim();
+            const logoFile = document.getElementById('airline-logo').files[0];
+
+            if (!name || !url) {
+                alert('Please enter both airline name and URL.');
+                return;
+            }
+
+            const existingAirlines = Array.from(document.querySelectorAll('#airline-list a')).map(a => a.textContent.toLowerCase());
+            if (existingAirlines.includes(name.toLowerCase())) {
+                alert('This airline name already exists.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const logoSrc = event.target.result;
+
+                const list = document.getElementById('airline-list');
+                const listItem = createListItem(name, url, logoSrc);
+                list.appendChild(listItem);
+
+                const namesList = document.getElementById('airline-names-list');
+                const nameItem = createDropdownItem(name, url, logoSrc);
+                namesList.appendChild(nameItem);
+
+                saveAirlines(); // Save the updated list
+                document.getElementById('airline-name').value = '';
+                document.getElementById('airline-url').value = '';
+                document.getElementById('airline-logo').value = '';
+            };
+
+            if (logoFile) {
+                reader.readAsDataURL(logoFile);
+            } else {
+                reader.onload({ target: { result: '' } });
+            }
+        }
+
+        function createListItem(name, url, logoSrc) {
+            const listItem = document.createElement('li');
+            listItem.className = 'list-item';
+
+            const logo = document.createElement('img');
+            logo.src = logoSrc;
+            logo.alt = `${name} Logo`;
+            logo.className = 'logo';
+            logo.onclick = () => window.open(url, '_blank');
+
+            const details = document.createElement('div');
+            details.className = 'details';
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.textContent = name;
+
+            details.appendChild(link);
+
+            const editButton = document.createElement('button');
+            editButton.textContent = 'Edit';
+            editButton.className = 'edit-btn';
+            editButton.onclick = () => {
+                editAirline(listItem, name, url, logoSrc);
+            };
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Delete';
+            deleteButton.className = 'delete-btn';
+            deleteButton.onclick = () => {
+                listItem.remove();
+                saveAirlines(); // Save the updated list
+            };
+
+            listItem.appendChild(details);
+            listItem.appendChild(logo);
+            listItem.appendChild(editButton);
+            listItem.appendChild(deleteButton);
+
+            return listItem;
+        }
+
+        function createDropdownItem(name, url, logoSrc) {
+            const dropdownItem = document.createElement('li');
+            dropdownItem.className = 'list-item';
+
+            const logo = document.createElement('img');
+            logo.src = logoSrc;
+            logo.alt = `${name} Logo`;
+            logo.className = 'logo';
+            logo.onclick = () => window.open(url, '_blank');
+
+            const details = document.createElement('div');
+            details.className = 'details';
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.textContent = name;
+
+            details.appendChild(link);
+
+            const editButton = document.createElement('button');
+            editButton.textContent = 'Edit';
+            editButton.className = 'edit-btn';
+            editButton.onclick = () => {
+                editAirline(dropdownItem, name, url, logoSrc);
+            };
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Delete';
+            deleteButton.className = 'delete-btn';
+            deleteButton.onclick = () => {
+                dropdownItem.remove();
+                saveAirlines(); // Save the updated list
+            };
+
+            dropdownItem.appendChild(details);
+            dropdownItem.appendChild(logo);
+            dropdownItem.appendChild(editButton);
+            dropdownItem.appendChild(deleteButton);
+
+            return dropdownItem;
+        }
+
+        function toggleAirlineFolder() {
+            const dropdown = document.getElementById('airline-names-dropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function filterAirlines() {
+            const query = document.getElementById('search-box').value.toLowerCase();
+
+            const listItems = document.querySelectorAll('#airline-list li');
+            listItems.forEach(item => {
+                const text = item.querySelector('a').textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+
+            const dropdownItems = document.querySelectorAll('#airline-names-list li');
+            dropdownItems.forEach(item => {
+                const text = item.querySelector('a').textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
